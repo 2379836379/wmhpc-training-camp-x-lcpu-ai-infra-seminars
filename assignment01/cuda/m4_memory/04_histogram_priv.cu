@@ -22,6 +22,32 @@ __global__ void histogram_naive(const unsigned char *data, unsigned int *hist,
 __global__ void histogram_priv(const unsigned char *data, unsigned int *hist,
                                int n) {
     // TODO：从这里开始写（shared memory 私有化版本）
+     // 1. 在 shared memory 声明局部直方图（每个 Block 一个）
+    __shared__ unsigned int local_hist[BINS];
+    
+    // 2. 初始化局部直方图为 0
+    //    使用所有线程并行初始化（避免单线程串行）
+    int tid = threadIdx.x;
+    for (int i = tid; i < BINS; i += blockDim.x) {
+        local_hist[i] = 0;
+    }
+    __syncthreads();  // 确保所有线程完成初始化
+    
+    // 3. 统计到局部直方图（使用原子操作，但只在 Block 内竞争）
+    int i = blockIdx.x * blockDim.x + threadIdx.x;
+    int stride = blockDim.x * gridDim.x;
+    for (; i < n; i += stride) {
+        unsigned char v = data[i];
+        atomicAdd(&local_hist[v], 1u);
+    }
+    __syncthreads();  // 确保所有线程完成统计
+    
+    // 4. 合并到全局直方图（每个线程负责一个或多个 bin）
+    for (int i = tid; i < BINS; i += blockDim.x) {
+        if (local_hist[i] > 0) {
+            atomicAdd(&hist[i], local_hist[i]);
+        }
+    }
 }
 
 // ---------------- 以下是判测与计时，不要修改 ----------------

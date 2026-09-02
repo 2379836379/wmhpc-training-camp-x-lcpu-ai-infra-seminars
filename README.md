@@ -19,3 +19,15 @@
 ## 关于 AI 使用
 
 policy 见 [CLAUDE.md](CLAUDE.md)（[AGENTS.md](AGENTS.md) 内容相同，供其他工具读取）。AI 可以帮你理解，但不能替你实现。
+
+
+## 命令
+```
+# 申请一张 GPU 的交互环境：
+srun -G 1 --time=00:15:00 --pty bash
+# 提交批处理任务：
+sbatch -G 1 --time=00:15:00 job.sh
+# 查看队列和资源：
+sinfo
+squeue
+```
