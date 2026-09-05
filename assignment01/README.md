@@ -40,6 +40,6 @@ python3 -m venv .venv && .venv/bin/pip install -e '.[tilelang]' && .venv/bin/pyt
 
 ```bash
 cd cuda && for f in bin/m*/*; do case $f in *_sassonly|*_ptxonly) continue;; esac; echo "== $f"; $f; done  # CUDA 各题（跳过预期报错的 case）
-pytest tests/                                          # Python 各题
-./m2_first_kernel/judge_saxpy.sh path/to/saxpy.cu      # 压轴题 2.9
+uv run pytest tests/                                          # Python 各题
+./m2_first_kernel/judge_saxpy.sh ./m2_first_kernel/saxpy.cu     # 压轴题 2.9
 ```
