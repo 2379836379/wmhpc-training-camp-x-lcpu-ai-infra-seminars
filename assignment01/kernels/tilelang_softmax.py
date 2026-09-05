@@ -18,11 +18,58 @@ contract：
 (Optional) 将你的实现和 torch.softmax 比较一下性能（行宽取 256/1024/4096），
 Tip: elementwise + 行内归约的 kernel 大概率是带宽瓶颈，可以想想理论上限是多少。
 """
-
 import torch
 import tilelang
 import tilelang.language as T
 
 
+def make_softmax(M, N, dtype="float32"):
+    """创建 Softmax kernel"""
+    frag_width = 1
+    while frag_width < N:
+        frag_width <<= 1
+    
+    @T.prim_func
+    def main(
+        X: T.Tensor((M, N), dtype),
+        Y: T.Tensor((M, N), dtype),
+    ):
+        with T.Kernel(T.ceildiv(M, 1), 1, threads=128) as (bx, by):
+            row = bx
+            X_frag = T.alloc_fragment((frag_width,), dtype)
+            Y_frag = T.alloc_fragment((frag_width,), dtype)
+
+            for i in T.Parallel(frag_width):
+                X_frag[i] = T.if_then_else(i < N, X[row, i], -T.infinity(dtype))
+            
+            max_val = T.alloc_fragment((1,), dtype)
+            T.reduce_max(X_frag, max_val, dim=0)
+            
+            for i in T.Parallel(frag_width):
+                X_frag[i] = T.exp(X_frag[i] - max_val[0])
+            
+            sum_val = T.alloc_fragment((1,), dtype)
+            T.reduce_sum(X_frag, sum_val, dim=0)
+            
+            for i in T.Parallel(frag_width):
+                Y_frag[i] = T.if_then_else(i < N, X_frag[i] / sum_val[0], 0.0)
+            
+            for i in T.Parallel(frag_width):
+                if i < N:
+                    Y[row, i] = Y_frag[i]
+    
+    return main
+
+_KERNEL_CACHE = {}
 def softmax(x: torch.Tensor) -> torch.Tensor:
-    raise NotImplementedError("从这里开始写")
+    """
+    对输入张量 x (M, N) 逐行做 softmax。
+    """   
+    M, N = x.shape
+    key = (M, N, str(x.dtype), x.device.index)
+    if key not in _KERNEL_CACHE:
+      prim_func = make_softmax(M, N, dtype="float32")
+      _KERNEL_CACHE[key] = tilelang.compile(prim_func, out_idx=[1])
+      
+    kernel = _KERNEL_CACHE[key]
+    return kernel(x)
