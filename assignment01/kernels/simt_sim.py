@@ -20,12 +20,10 @@ contract: 实现 run(program) -> (regs, cycles)
 
 
 def run(program):
-    # 初始化32个lane的寄存器
     regs = list(range(32))
     cycles = 0
-    # prog是元组
+
     def execute_prog(prog, mask):
-        """执行一段程序，只对mask中为True的lane生效"""
         nonlocal cycles
         pc = 0
         while pc < len(prog):
@@ -33,7 +31,6 @@ def run(program):
             op = instr[0]
             
             if op == "add":
-                # 检查是否有active lane
                 if any(mask):
                     k = instr[1]
                     for i in range(32):
@@ -52,33 +49,27 @@ def run(program):
                 pc += 1
                 
             elif op == "if_lt":
-                # if_lt指令本身不计拍
                 t = instr[1]
                 then_prog = instr[2]
                 else_prog = instr[3]
                 
-                # 计算then_mask和else_mask
                 then_mask = [False] * 32
                 else_mask = [False] * 32
                 for i in range(32):
-                    if mask[i]:  # 只考虑当前active的lane
+                    if mask[i]: 
                         if regs[i] < t:
                             then_mask[i] = True
                         else:
                             else_mask[i] = True
                 
-                # 执行then分支（如果有active lane）
                 if any(then_mask):
                     execute_prog(then_prog, then_mask)
                 
-                # 执行else分支（如果有active lane）
                 if any(else_mask):
                     execute_prog(else_prog, else_mask)
-                
-                # 分支汇合，继续执行下一条指令
+
                 pc += 1
     
-    # 初始所有lane都active
     initial_mask = [True] * 32
     execute_prog(program, initial_mask)
     

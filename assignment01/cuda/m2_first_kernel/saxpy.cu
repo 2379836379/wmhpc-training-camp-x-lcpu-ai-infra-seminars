@@ -41,8 +41,7 @@ struct GpuTimer {
     }
 };
 
-// ==================== SAXPY 核函数 ====================
-// y = 2.0 * x + y
+
 __global__ void saxpy_kernel(const float *x, float *y, int n) {
     int idx = threadIdx.x + blockIdx.x * blockDim.x;
     int stride = gridDim.x * blockDim.x;
@@ -52,7 +51,6 @@ __global__ void saxpy_kernel(const float *x, float *y, int n) {
     }
 }
 
-// ==================== 主函数 ====================
 int main(int argc, char *argv[]) {    
     int n = atoi(argv[1]);
     
@@ -62,7 +60,6 @@ int main(int argc, char *argv[]) {
         return 0;
     }
     
-    // ===== 生成数据 =====
     size_t bytes = (size_t)n * sizeof(float);
     
     float *h_x = (float *)malloc(bytes);
@@ -78,16 +75,13 @@ int main(int argc, char *argv[]) {
         h_y[i] = (i % 1024) - 512;
     }
     
-    // ===== 分配设备内存 =====
     float *d_x, *d_y;
     CUDA_CHECK(cudaMalloc(&d_x, bytes));
     CUDA_CHECK(cudaMalloc(&d_y, bytes));
     
-    // ===== 拷贝数据到设备 =====
     CUDA_CHECK(cudaMemcpy(d_x, h_x, bytes, cudaMemcpyHostToDevice));
     CUDA_CHECK(cudaMemcpy(d_y, h_y, bytes, cudaMemcpyHostToDevice));
     
-    // ===== 启动内核并计时 =====
     int threads_per_block = 256;
     int blocks_per_grid = (n + threads_per_block - 1) / threads_per_block;
     
@@ -99,19 +93,15 @@ int main(int argc, char *argv[]) {
     
     float kernel_time_ms = timer.stop_ms();
     
-    // ===== 拷贝结果回主机 =====
     CUDA_CHECK(cudaMemcpy(h_y, d_y, bytes, cudaMemcpyDeviceToHost));
     
-    // ===== 用 double 累加所有 y[i] =====
     double sum = 0.0;
     for (int i = 0; i < n; i++) {
         sum += (double)h_y[i];
     }
     
-    // ===== 输出结果 =====
     printf("SUM=%.0f n=%d time=%.3f ms\n", sum, n, kernel_time_ms);
     
-    // ===== 清理资源 =====
     free(h_x);
     free(h_y);
     CUDA_CHECK(cudaFree(d_x));

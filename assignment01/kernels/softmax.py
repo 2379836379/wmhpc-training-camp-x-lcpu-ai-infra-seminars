@@ -28,9 +28,7 @@ def softmax_kernel(
     stride_y_row,    # Y 的行步长
     BLOCK_SIZE: tl.constexpr,  # block 大小（2 的幂）
 ):
-    """
-    Softmax kernel: 每个 program 处理一行
-    """
+
     # 获取当前 program 处理的行索引
     row = tl.program_id(0)
     
@@ -38,40 +36,31 @@ def softmax_kernel(
     x_row_ptr = X_ptr + row * stride_x_row
     y_row_ptr = Y_ptr + row * stride_y_row
     
-    # 创建列索引（从 0 到 BLOCK_SIZE-1）
+    # 创建列索引
     cols = tl.arange(0, BLOCK_SIZE)
     
-    # 加载数据（mask 处理边界）
     mask = cols < N
     x = tl.load(x_row_ptr + cols, mask=mask, other=-float('inf'))
     
-    # 计算最大值（数值稳定）
     max_val = tl.max(x, axis=0)
-    
-    # 减最大值并计算 exp
+
     x_exp = tl.exp(x - max_val)
-    
-    # 计算求和
+
     sum_val = tl.sum(x_exp, axis=0)
-    
-    # 归一化
+
     y = x_exp / sum_val
-    
-    # 写回结果（只写有效位置）
+
     tl.store(y_row_ptr + cols, y, mask=mask)
 
 def softmax(x: torch.Tensor) -> torch.Tensor:
     M, N = x.shape
-    # 分配输出张量
+
     y = torch.empty_like(x)
     
-    # 计算 BLOCK_SIZE（不小于 N 的 2 的幂）
     BLOCK_SIZE = triton.next_power_of_2(N)
-    
-    # 计算网格大小：每行一个 program
+
     grid = (M,)
-    
-    # 启动 kernel
+
     softmax_kernel[grid](
         x, y, M, N,
         x.stride(0), y.stride(0),
