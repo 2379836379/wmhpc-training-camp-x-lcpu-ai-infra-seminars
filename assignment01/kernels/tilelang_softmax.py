@@ -24,7 +24,6 @@ import tilelang.language as T
 
 
 def make_softmax(M, N, dtype="float32"):
-    """创建 Softmax kernel"""
     frag_width = 1
     while frag_width < N:
         frag_width <<= 1
@@ -62,9 +61,6 @@ def make_softmax(M, N, dtype="float32"):
 
 _KERNEL_CACHE = {}
 def softmax(x: torch.Tensor) -> torch.Tensor:
-    """
-    对输入张量 x (M, N) 逐行做 softmax。
-    """   
     M, N = x.shape
     key = (M, N, str(x.dtype), x.device.index)
     if key not in _KERNEL_CACHE:
