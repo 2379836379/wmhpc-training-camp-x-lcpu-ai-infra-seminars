@@ -12,7 +12,7 @@ CLAUDE.local.md
 
 # LaTeX build artifacts (the copy at assignment*/assignment*.pdf is committed;
 # the duplicate inside handout/ build dirs is not)
-assignment*/handout/*.pdf
+
 *.aux
 *.bbl
 *.bcf
